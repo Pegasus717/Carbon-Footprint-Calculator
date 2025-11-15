@@ -149,10 +149,23 @@ async function calculateAndLog() {
             co2e_unit: co2eUnit
         };
         
-        APP_STATE.allLogs.push(newLog);
-        saveLogs();
-        renderHistory();
-        updateChart();
+        // Save to Firestore
+        try {
+            const logId = await saveLog(newLog);
+            if (logId) {
+                newLog.id = logId;
+                APP_STATE.allLogs.unshift(newLog); // Add to beginning of array
+                saveLogs();
+                renderHistory();
+                updateChart();
+                resultDiv.innerHTML += '<p class="text-green-400 text-sm mt-2">✅ Log saved to cloud storage</p>';
+            } else {
+                resultDiv.innerHTML += '<p class="text-yellow-400 text-sm mt-2">⚠️ Calculation complete but log not saved</p>';
+            }
+        } catch (saveError) {
+            console.error('Error saving log:', saveError);
+            resultDiv.innerHTML += '<p class="text-red-400 text-sm mt-2">❌ Error saving log: ' + saveError.message + '</p>';
+        }
         
         valueInput.value = "";
 

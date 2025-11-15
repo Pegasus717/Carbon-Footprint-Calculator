@@ -2,34 +2,72 @@
 // STORAGE MANAGEMENT - Firebase Firestore operations
 // ============================================
 
+// Real-time listener unsubscribe function
+let logsUnsubscribe = null;
+
 // Load logs from Firestore for the current user
 async function loadLogs() {
     try {
         const user = auth.currentUser;
         if (!user) {
+            console.log('No user logged in, clearing logs');
             APP_STATE.allLogs = [];
+            // Unsubscribe from previous listener if exists
+            if (logsUnsubscribe) {
+                logsUnsubscribe();
+                logsUnsubscribe = null;
+            }
             return;
         }
 
+        console.log('Loading logs for user:', user.uid);
+        
+        // Unsubscribe from previous listener if exists
+        if (logsUnsubscribe) {
+            logsUnsubscribe();
+        }
+        
         const logsRef = db.collection('carbonLogs')
             .where('uid', '==', user.uid);
         
-        const snapshot = await logsRef.get();
-        APP_STATE.allLogs = [];
-        
-        snapshot.forEach(doc => {
-            const logData = doc.data();
-            APP_STATE.allLogs.push({
-                id: doc.id,
-                ...logData
+        // Set up real-time listener
+        logsUnsubscribe = logsRef.onSnapshot((snapshot) => {
+            APP_STATE.allLogs = [];
+            
+            snapshot.forEach(doc => {
+                const logData = doc.data();
+                // Ensure timestamp is a number (handle Firestore Timestamp if needed)
+                let timestamp = logData.timestamp;
+                if (timestamp && timestamp.toMillis) {
+                    timestamp = timestamp.toMillis();
+                } else if (timestamp && timestamp.seconds) {
+                    timestamp = timestamp.seconds * 1000;
+                }
+                
+                APP_STATE.allLogs.push({
+                    id: doc.id,
+                    ...logData,
+                    timestamp: timestamp || Date.now()
+                });
             });
+            
+            // Sort by timestamp descending (newest first)
+            APP_STATE.allLogs.sort((a, b) => b.timestamp - a.timestamp);
+            
+            console.log(`Loaded ${APP_STATE.allLogs.length} logs from Firestore`);
+            
+            // Update UI when data changes
+            renderHistory();
+            updateChart();
+            updateStatistics();
+        }, (error) => {
+            console.error('Error in real-time listener:', error);
         });
-        
-        // Sort by timestamp descending (newest first)
-        APP_STATE.allLogs.sort((a, b) => b.timestamp - a.timestamp);
         
     } catch(error) {
         console.error('Error loading logs:', error);
+        console.error('Error code:', error.code);
+        console.error('Error message:', error.message);
         APP_STATE.allLogs = [];
     }
 }
@@ -49,10 +87,14 @@ async function saveLog(logData) {
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         };
 
+        console.log('Saving log to Firestore:', logWithUid);
         const docRef = await db.collection('carbonLogs').add(logWithUid);
+        console.log('Log saved successfully with ID:', docRef.id);
         return docRef.id;
     } catch(error) {
         console.error('Error saving log:', error);
+        console.error('Error code:', error.code);
+        console.error('Error message:', error.message);
         throw error;
     }
 }
@@ -138,4 +180,4 @@ function updateStatistics() {
     getEl("totalEntries").textContent = APP_STATE.allLogs.length;
     getEl("avgEmissions").textContent = formatNum(averageCO2) + " kg";
     getEl("weekEmissions").textContent = formatNum(weekCO2) + " kg";
-}  
+}

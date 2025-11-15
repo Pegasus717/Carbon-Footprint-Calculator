@@ -71,7 +71,7 @@ function renderHistory() {
         const log = reversedLogs[i];
         const logDate = new Date(log.timestamp);
         const dateString = logDate.toLocaleDateString() + " " + logDate.toLocaleTimeString();
-        const originalIndex = APP_STATE.allLogs.indexOf(log);
+        const logId = log.id || log.timestamp; // Use ID if available, fallback to timestamp
         
         const logItem = document.createElement("div");
         logItem.className = "p-4 bg-black/30 rounded-lg border border-white/10 hover:bg-black/50 transition-all";
@@ -88,7 +88,7 @@ function renderHistory() {
                     <span class="text-emerald-400 font-bold text-lg">${formatNum(log.co2e)} ${log.co2e_unit}</span>
                 </div>
                 </div>
-                <button class="deleteBtn text-red-400 hover:text-red-300 text-2xl font-bold ml-3 px-2" data-index="${originalIndex}">×</button>
+                <button class="deleteBtn text-red-400 hover:text-red-300 text-2xl font-bold ml-3 px-2" data-log-id="${logId}">×</button>
             </div>
         `;
 

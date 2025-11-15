@@ -22,3 +22,6 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
+// Global flag to track auth state
+let authReady = false;
+

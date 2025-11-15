@@ -1,3 +1,7 @@
+// ============================================
+// CHART MANAGEMENT - Chart.js operations
+// ============================================
+
 function updateChart() {
     const canvas = getEl("chartCanvas");
     const ctx = canvas.getContext("2d");
