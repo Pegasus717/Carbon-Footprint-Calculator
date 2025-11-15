@@ -138,4 +138,4 @@ function updateStatistics() {
     getEl("totalEntries").textContent = APP_STATE.allLogs.length;
     getEl("avgEmissions").textContent = formatNum(averageCO2) + " kg";
     getEl("weekEmissions").textContent = formatNum(weekCO2) + " kg";
-}
+}  

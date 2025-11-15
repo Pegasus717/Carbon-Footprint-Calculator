@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Carbon Footprint Calculator</title>
+  <link rel="stylesheet" href="main.css">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.umd.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+</head>
+<body class="min-h-screen text-white p-4 md:p-6">
+  <div class="max-w-7xl mx-auto">
+    <!-- Header -->
+    <header class="mb-8">
+      <div class="flex flex-col md:flex-row justify-between items-center mb-4 gap-4">
+        <div class="text-center md:text-left flex-1 w-full md:w-auto">
+          <h1 class="text-3xl md:text-4xl lg:text-5xl font-bold mb-2 md:mb-3 text-white">
+            Carbon Footprint Calculator
+          </h1>
+          <p class="text-gray-300 text-sm md:text-lg">Track, analyze, and visualize your carbon emissions</p>
+        </div>
+        <div class="flex items-center gap-2 md:gap-3 w-full md:w-auto justify-center md:justify-end">
+          <span id="userEmail" class="text-xs md:text-sm text-gray-400 truncate max-w-[150px] md:max-w-none"></span>
+          <button id="logoutBtn" class="btn bg-red-600 hover:bg-red-700 text-xs md:text-sm whitespace-nowrap">
+            Logout
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Statistics Dashboard -->
+    <section class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div class="stat-card card p-4 rounded-xl">
+       <div class="text-sm text-gray-400 mb-1">Total Emissions</div>
+        <div id="totalEmissions" class="text-2xl font-bold text-emerald-400">0 kg</div>
+      </div>
+      <div class="stat-card card p-4 rounded-xl">
+        <div class="text-sm text-gray-400 mb-1">Total Entries</div>
+        <div id="totalEntries" class="text-2xl font-bold text-blue-400">0</div>
+      </div>
+      <div class="stat-card card p-4 rounded-xl">
+        <div class="text-sm text-gray-400 mb-1">Average per Entry</div>
+        <div id="avgEmissions" class="text-2xl font-bold text-cyan-400">0 kg</div>
+      </div>
+      <div class="stat-card card p-4 rounded-xl">
+        <div class="text-sm text-gray-400 mb-1">This Week</div>
+        <div id="weekEmissions" class="text-2xl font-bold text-teal-400">0 kg</div>
+      </div>
+    </section>
+
+    <!-- Main Content -->
+    <section class="grid md:grid-cols-2 gap-6 mb-6">
+      <!-- Search Section -->
+      <div class="card p-6 rounded-2xl">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="w-10 h-10 rounded-lg bg-blue-600 flex items-center justify-center text-xl">
+            🔍
+          </div>
+          <h2 class="text-2xl font-bold">Search Activity</h2>
+        </div>
+        <div class="flex gap-2 mb-4">
+          <input 
+            id="searchInput" 
+            class="input flex-1" 
+            placeholder="Search: beef, electricity, car, flight..." 
+            type="text"
+          >
+          <button id="searchBtn" class="btn btn-primary">Search</button>
+        </div>
+        <div id="searchResults" class="space-y-2 max-h-80 overflow-auto scrollbar"></div>
+      </div>
+
+      <!-- Activity Details -->
+      <div class="card p-6 rounded-2xl">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="w-10 h-10 rounded-lg bg-emerald-600 flex items-center justify-center text-xl">
+            📋
+          </div>
+          <h2 class="text-2xl font-bold">Activity Details</h2>
+        </div>
+        
+        <div id="selectedCard" class="hidden">
+          <div class="mb-4 p-4 bg-black/30 rounded-lg border border-white/10">
+            <h3 id="activityName" class="font-bold text-xl mb-2 text-emerald-400"></h3>
+            <div id="activityInfo" class="text-sm text-gray-300 space-y-1 mb-3"></div>
+            <div class="text-xs text-gray-400">
+              <span class="font-semibold">Unit Type:</span> 
+              <span id="unitType" class="text-yellow-400 ml-1"></span>
+            </div>
+          </div>
+          
+          <div id="paramInputs" class="mb-4"></div>
+          
+          <div class="flex gap-2">
+            <button id="calcBtn" class="btn btn-secondary flex-1">Calculate & Log</button>
+            <button id="clearBtn" class="btn bg-gray-700 hover:bg-gray-600">Clear</button>
+          </div>
+        </div>
+        
+        <div id="noSelection" class="text-gray-400 text-center py-12">
+          <div class="text-5xl mb-3">📊</div>
+          <p class="text-lg">No activity selected</p>
+          <p class="text-sm mt-1">Search and select an activity to begin</p>
+        </div>
+        
+        <div id="result" class="mt-4"></div>
+      </div>
+    </section>
+
+    <!-- Chart and History -->
+    <section class="grid md:grid-cols-2 gap-6 mb-6">
+      <!-- Chart -->
+      <div class="card p-6 rounded-2xl">
+        <div class="flex justify-between items-center mb-4">
+          <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg bg-cyan-600 flex items-center justify-center text-xl">
+            📈
+          </div>
+            <h2 class="text-2xl font-bold">Emissions Chart</h2>
+          </div>
+          <div class="flex gap-2">
+            <button id="viewDaily" class="btn bg-blue-600 hover:bg-blue-700 text-sm active">Daily</button>
+            <button id="viewWeekly" class="btn bg-gray-700 hover:bg-gray-600 text-sm">Weekly</button>
+          </div>
+        </div>
+        <div style="height: 300px; position: relative;">
+          <canvas id="chartCanvas"></canvas>
+        </div>
+      </div>
+
+      <!-- History -->
+      <div class="card p-6 rounded-2xl">
+        <div class="flex justify-between items-center mb-4">
+          <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg bg-slate-600 flex items-center justify-center text-xl">
+            📝
+          </div>
+            <h2 class="text-2xl font-bold">History</h2>
+          </div>
+          <button id="clearAllBtn" class="btn bg-red-600 hover:bg-red-700 text-sm">Clear All</button>
+        </div>
+        <div class="mb-3">
+          <input 
+            id="filterInput" 
+            class="input w-full text-sm" 
+            placeholder="🔍 Filter by activity name..." 
+            type="text"
+          >
+        </div>
+        <div id="historyList" class="space-y-3 max-h-80 overflow-auto scrollbar"></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Firebase Configuration -->
+  <script src="./scripts/firebase-config.js"></script>
+  <!-- Authentication Guard -->
+  <script src="./scripts/auth-guard.js"></script>
+  <!-- App Scripts -->
+  <script src="./scripts/config.js"></script>
+  <script src="./scripts/storage.js"></script>
+  <script src="./scripts/api.js"></script>
+  <script src="./scripts/chart.js"></script>
+  <script src="./scripts/ui.js"></script>
+  <script src="./scripts/main.js"></script>
+</body>
+</html>

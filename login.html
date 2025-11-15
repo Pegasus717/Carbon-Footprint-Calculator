@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - Carbon Footprint Calculator</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+    * { font-family: 'Inter', sans-serif; }
+    body {
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 50%, #1e293b 100%);
+      min-height: 100vh;
+    }
+    .login-card {
+      background: rgba(30, 41, 59, 0.8);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+    .input-field {
+      padding: 12px 16px;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      color: white;
+      border-radius: 8px;
+      transition: all 0.2s ease;
+      width: 100%;
+    }
+    .input-field:focus {
+      outline: none;
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+    .input-field::placeholder {
+      color: rgba(148, 163, 184, 0.6);
+    }
+    .input-field.error {
+      border-color: #ef4444;
+    }
+    .btn-primary {
+      background: #2563eb;
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      border: none;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      width: 100%;
+    }
+    .btn-primary:hover {
+      background: #1d4ed8;
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    }
+    .btn-primary:disabled {
+      background: #475569;
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+    .btn-secondary {
+      background: transparent;
+      color: #94a3b8;
+      padding: 12px 24px;
+      border-radius: 8px;
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      width: 100%;
+    }
+    .btn-secondary:hover {
+      background: rgba(148, 163, 184, 0.1);
+      border-color: rgba(148, 163, 184, 0.5);
+    }
+    .error-message {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #fca5a5;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      margin-top: 8px;
+    }
+    .success-message {
+      background: rgba(5, 150, 105, 0.1);
+      border: 1px solid rgba(5, 150, 105, 0.3);
+      color: #6ee7b7;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      margin-top: 8px;
+    }
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+    .label {
+      display: block;
+      color: #cbd5e1;
+      font-size: 0.875rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+    .toggle-link {
+      color: #60a5fa;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+    .toggle-link:hover {
+      color: #93c5fd;
+    }
+    .spinner {
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top: 2px solid white;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      animation: spin 1s linear infinite;
+      display: inline-block;
+      margin-right: 8px;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+  <div class="login-card rounded-2xl p-8 w-full max-w-md">
+    <!-- Logo/Header -->
+    <div class="text-center mb-8">
+      <div class="w-16 h-16 bg-gradient-to-br from-emerald-500 to-cyan-500 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4">
+        🌱
+      </div>
+      <h1 class="text-3xl font-bold text-white mb-2">Carbon Footprint Calculator</h1>
+      <p class="text-gray-400 text-sm">Sign in to track your emissions</p>
+    </div>
+
+    <!-- Error/Success Messages -->
+    <div id="messageContainer" class="hidden"></div>
+
+    <!-- Login Form -->
+    <form id="loginForm" class="space-y-4">
+      <div class="form-group">
+        <label for="loginEmail" class="label">Email</label>
+        <input 
+          type="email" 
+          id="loginEmail" 
+          class="input-field" 
+          placeholder="Enter your email"
+          required
+          autocomplete="email"
+        >
+        <span id="loginEmailError" class="text-red-400 text-xs mt-1 hidden"></span>
+      </div>
+
+      <div class="form-group">
+        <label for="loginPassword" class="label">Password</label>
+        <input 
+          type="password" 
+          id="loginPassword" 
+          class="input-field" 
+          placeholder="Enter your password"
+          required
+          autocomplete="current-password"
+          minlength="6"
+        >
+        <span id="loginPasswordError" class="text-red-400 text-xs mt-1 hidden"></span>
+      </div>
+
+      <button type="submit" id="loginBtn" class="btn-primary">
+        Sign In
+      </button>
+    </form>
+
+    <!-- Sign Up Form (Hidden by default) -->
+    <form id="signupForm" class="space-y-4 hidden">
+      <div class="form-group">
+        <label for="signupName" class="label">Name (Optional)</label>
+        <input 
+          type="text" 
+          id="signupName" 
+          class="input-field" 
+          placeholder="Enter your name"
+          autocomplete="name"
+        >
+      </div>
+
+      <div class="form-group">
+        <label for="signupEmail" class="label">Email</label>
+        <input 
+          type="email" 
+          id="signupEmail" 
+          class="input-field" 
+          placeholder="Enter your email"
+          required
+          autocomplete="email"
+        >
+        <span id="signupEmailError" class="text-red-400 text-xs mt-1 hidden"></span>
+      </div>
+
+      <div class="form-group">
+        <label for="signupPassword" class="label">Password</label>
+        <input 
+          type="password" 
+          id="signupPassword" 
+          class="input-field" 
+          placeholder="Create a password (min. 6 characters)"
+          required
+          autocomplete="new-password"
+          minlength="6"
+        >
+        <span id="signupPasswordError" class="text-red-400 text-xs mt-1 hidden"></span>
+      </div>
+
+      <div class="form-group">
+        <label for="confirmPassword" class="label">Confirm Password</label>
+        <input 
+          type="password" 
+          id="confirmPassword" 
+          class="input-field" 
+          placeholder="Confirm your password"
+          required
+          autocomplete="new-password"
+          minlength="6"
+        >
+        <span id="confirmPasswordError" class="text-red-400 text-xs mt-1 hidden"></span>
+      </div>
+
+      <button type="submit" id="signupBtn" class="btn-primary">
+        Create Account
+      </button>
+    </form>
+
+    <!-- Toggle between Login and Sign Up -->
+    <div class="mt-6 text-center">
+      <p class="text-gray-400 text-sm">
+        <span id="toggleText">Don't have an account?</span>
+        <span id="toggleLink" class="toggle-link ml-1">Sign up</span>
+      </p>
+    </div>
+  </div>
+
+  <!-- Firebase Configuration -->
+  <script src="./scripts/firebase-config.js"></script>
+  <!-- Authentication Logic -->
+  <script src="./scripts/auth.js"></script>
+</body>
+</html>
+
